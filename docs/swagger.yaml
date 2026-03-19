@@ -1,4 +1,3 @@
-basePath: /v1
 definitions:
   entity.Todo:
     properties:
@@ -15,6 +14,25 @@ definitions:
         example: Learn Clean Architecture
         type: string
     type: object
+  http.AuthRequest:
+    properties:
+      email:
+        example: user@example.com
+        type: string
+      password:
+        example: securepassword
+        minLength: 8
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  http.AuthResponse:
+    properties:
+      token:
+        example: eyJhbGci...
+        type: string
+    type: object
   http.CreateTodoRequest:
     properties:
       title:
@@ -29,13 +47,61 @@ definitions:
         example: something went wrong
         type: string
     type: object
-host: localhost:8080
 info:
   contact: {}
-  description: Production-grade Todo API built with Clean Architecture
-  title: Todo Clean API
-  version: 1.0.0
 paths:
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Login and receive a JWT token
+      parameters:
+      - description: Credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/http.AuthRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/http.AuthResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/http.ErrorResponse'
+      summary: Login
+      tags:
+      - auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Register a new user
+      parameters:
+      - description: Credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/http.AuthRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/http.AuthResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/http.ErrorResponse'
+      summary: Register
+      tags:
+      - auth
   /todos:
     get:
       description: Get all todos ordered by creation date
@@ -119,13 +185,4 @@ paths:
       summary: Complete a todo
       tags:
       - todos
-schemes:
-- http
-- https
-securityDefinitions:
-  BearerAuth:
-    description: Type "Bearer" followed by a space and your JWT token
-    in: header
-    name: Authorization
-    type: apiKey
 swagger: "2.0"
