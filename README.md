@@ -1,7 +1,7 @@
 # go-production-starter
 
 A production-ready Go backend built from scratch on Clean Architecture principles.
-No magic, no code generation beyond sqlc, no framework lock-in — just Go, explicit
+No magic, no code generation beyond sqlc, no framework lock-in just Go, explicit
 dependency injection, and a structure that scales without turning into spaghetti.
 
 Built as a learning project. Every decision is intentional and documented below.
@@ -352,7 +352,7 @@ The same pattern every time:
 1. Add/update the struct in `internal/entity/`
 2. Add the method to the interface in `internal/usecase/interfaces.go`
 3. Implement the business logic in `internal/usecase/`
-4. Write unit tests in `internal/usecase/` using `InMemoryRepo` — no DB needed
+4. Write unit tests in `internal/usecase/` using `InMemoryRepo` no DB needed
 5. Add the SQL query to `internal/repo/sqlc/query.sql` and run `sqlc generate`
 6. Implement the method in `internal/repo/postgres.go` and `internal/repo/memory.go`
 7. Add the HTTP handler in `internal/controller/http/`
@@ -365,10 +365,6 @@ Business logic and storage never need to change at the same time. That's the poi
 ## Swapping components
 
 ### Switch HTTP framework
-
-
-Only `internal/controller/http/` changes. Usecase, repo, entity untouched.
-
 
 ### Switch database
 
@@ -406,10 +402,8 @@ Subsequent:     cache HIT  → Redis only                  (~0.5ms)
 After write:    cache invalidated → next read hits Postgres
 ```
 
-
 Cache keys:
 
-- `todos:all` — the full list
 - `todo:<id>` — individual todo by ID
 
 ---
@@ -417,20 +411,20 @@ Cache keys:
 production reference. This repo exists to understand _why_ the template is structured
 
 [go-clean-template](https://github.com/evrone/go-clean-template) is an excellent
-|          | go-production-starter | go-clean-template         |
+| | go-production-starter | go-clean-template |
 | -------- | --------------------- | ------------------------- |
-| Domains  | Todo + Auth           | Translation (example)     |
-| Servers  | REST only             | REST + gRPC + AMQP + NATS |
-| DB layer | sqlc                  | Squirrel query builder    |
-| Caching  | Redis decorator       | Not included              |
-| Auth     | JWT built-in          | Not included              |
-| Purpose  | Learn + extend        | Production reference      |
-| Caching  | Redis decorator       | Not included              |
-| Auth     | JWT built-in          | Not included              |
-| Purpose  | Learn + extend        | Production reference      |
-
-Use this repo to understand the pattern. Use go-clean-template as a reference
-when you need gRPC, message queues, or a more complete production scaffold.
+| Domains | Todo + Auth | Translation (example) |
+| | go-production-starter | go-clean-template |
+| DB layer | sqlc | Squirrel query builder |
+| Domains | Todo + Auth | Translation (example) |
+| Servers | REST only | REST + gRPC + AMQP + NATS |
+| DB layer | sqlc | Squirrel query builder |
+| Caching | Redis decorator | Not included |
+| Auth | JWT built-in | Not included |
+| Purpose | Learn + extend | Production reference |
+| Caching | Redis decorator | Not included |
+| Auth | JWT built-in | Not included |
+| Purpose | Learn + extend | Production reference |
 
 ---
 
