@@ -1,0 +1,39 @@
+run:
+  go: "1.25"
+
+linters:
+  enable:
+    - errcheck # check for unhandled errors
+    - gosimple # simplify code suggestions
+    - govet # go vet checks
+    - ineffassign # detect ineffectual assignments
+    - staticcheck # static analysis
+    - unused # detect unused code
+    - gofmt # formatting
+    - goimports # import ordering
+    - misspell # spelling mistakes
+    - bodyclose # check http response body is closed
+    - noctx # find http requests without context
+    - exhaustive # check exhaustive enum switches
+    - godot # check comment ending with period
+
+linters-settings:
+  gofmt:
+    simplify: true
+  goimports:
+    local-prefixes: todo-clean
+  misspell:
+    locale: US
+  godot:
+    scope: declarations
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck
+    - path: internal/repo/sqlcgen
+      linters:
+        - all
+  max-issues-per-linter: 50
+  max-same-issues: 10

@@ -1,0 +1,171 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: todo
+          POSTGRES_PASSWORD: todo
+          POSTGRES_DB: tododb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      APP_NAME: todo-clean
+      APP_VERSION: 1.0.0
+      APP_ENV: ci
+      HTTP_PORT: 8080
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: todo
+      POSTGRES_PASSWORD: todo
+      POSTGRES_DB: tododb
+      POSTGRES_SSLMODE: disable
+      JWT_SECRET: ci-test-secret-key-not-for-production
+      JWT_EXPIRY_HOURS: 24
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ""
+      REDIS_DB: 0
+      LOG_LEVEL: debug
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Install Postgres client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Wait for Postgres
+        run: |
+          for i in {1..10}; do
+            pg_isready -h localhost -U todo && break
+            sleep 2
+          done
+
+      - name: Wait for Redis
+        run: |
+          for i in {1..10}; do
+            redis-cli -h localhost ping && break
+            sleep 2
+          done
+
+      - name: Apply migrations
+        run: |
+          PGPASSWORD=todo psql -h localhost -U todo -d tododb -f migrations/001_create_todos.sql
+          PGPASSWORD=todo psql -h localhost -U todo -d tododb -f migrations/002_create_users.sql
+
+      - name: Run unit tests
+        run: go test ./internal/usecase/... -v -race -count=1
+
+  # lint:
+  #   name: Lint
+  #   runs-on: ubuntu-latest
+  #
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v4
+  #
+  #     - name: Set up Go
+  #       uses: actions/setup-go@v5
+  #       with:
+  #         go-version-file: go.mod
+  #         cache: true
+  #
+  #     - name: golangci-lint
+  #       uses: golangci/golangci-lint-action@v6
+  #       with:
+  #         version: v1.64.8
+  #         args: --timeout=5m
+  #         install-mode: goinstall
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build
+        run: go build -v -o bin/app ./cmd/app
+
+      - name: Check no uncommitted changes after build
+        run: git diff --exit-code
+
+  format:
+    name: format
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: set up go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: install goimports
+        run: go install golang.org/x/tools/cmd/goimports@latest
+
+      - name: check formatting
+        run: |
+          if [ -n "$(gofmt -l .)" ]; then
+            echo "gofmt issues:"
+            gofmt -l .
+            exit 1
+          fi
+
+          if [ -n "$(goimports -l .)" ]; then
+            echo "goimports issues:"
+            goimports -l .
+            exit 1
+          fi
+
+      - name: check go vet
+        run: go vet ./...

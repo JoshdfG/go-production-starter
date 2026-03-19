@@ -1,1 +1,32 @@
+# binary output
+bin/*
+!bin/.gitkeep
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# test binaries
+*.test
+*.out
+
+# environment
 .env
+
+# go workspace
+go.work
+go.work.sum
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# swagger generated (optional — some teams commit this, some don't)
+# docs/
+
+# dependency vendor (if not using vendoring)
+vendor/

@@ -1,67 +1,90 @@
 -include .env
-run: 
+export
+
+.PHONY: build run test test-v test-all lint fmt tidy swagger \
+        docker-up docker-down migrate ps verify \
+        register login create list fail
+
+# ── build ────────────────────────────────────────────────
+build:
+	go build -v -o bin/app ./cmd/app
+
+run:
 	go run ./cmd/app
 
-d-run:
+# ── test ─────────────────────────────────────────────────
+test:
+	go test ./internal/usecase/... -race -count=1
+
+test-v:
+	go test ./internal/usecase/... -v -race -count=1
+
+test-all:
+	go test ./... -race -count=1 -timeout 30s
+
+# ── quality ──────────────────────────────────────────────
+lint:
+	golangci-lint run ./...
+
+fmt:
+	gofmt -w .
+	goimports -w .
+
+tidy:
+	go mod tidy
+
+swagger:
+	swag init -g cmd/app/main.go --output docs
+
+# ── docker ───────────────────────────────────────────────
+docker-up:
 	docker run --name todo-postgres \
-  -e POSTGRES_USER=${POSTGRES_USER} \
-  -e POSTGRES_PASSWORD=${POSTGRES_PASSWORD} \
-  -e POSTGRES_DB=${POSTGRES_DB} \
-  -p ${POSTGRES_PORT}:5432 \
-  -d postgres:16-alpine
-
-redis:
+		-e POSTGRES_USER=${POSTGRES_USER} \
+		-e POSTGRES_PASSWORD=${POSTGRES_PASSWORD} \
+		-e POSTGRES_DB=${POSTGRES_DB} \
+		-p ${POSTGRES_PORT}:5432 \
+		-d postgres:16-alpine
 	docker run --name todo-redis \
-  -p 6379:6379 \
-  -d redis:7-alpine
+		-p 6379:6379 \
+		-d redis:7-alpine
 
-apply:
-	docker exec -i todo-postgres psql -U ${POSTGRES_USER} -d ${POSTGRES_DB} < migrations/002_create_users.sql
+docker-down:
+	docker stop todo-postgres todo-redis || true
+	docker rm todo-postgres todo-redis || true
 
 ps:
 	docker ps
 
-test:
-	go test ./internal/usecase/...
+# ── migrations ───────────────────────────────────────────
+migrate:
+	docker exec -i todo-postgres psql -U ${POSTGRES_USER} -d ${POSTGRES_DB} \
+		< migrations/001_create_todos.sql
+	docker exec -i todo-postgres psql -U ${POSTGRES_USER} -d ${POSTGRES_DB} \
+		< migrations/002_create_users.sql
 
-test-v:
-	go test ./internal/usecase/... -v
-
+# ── api ──────────────────────────────────────────────────
 register:
-	curl -X POST localhost:8080/v1/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"email":"test@example.com","password":"securepassword"}'
+	curl -s -X POST localhost:8080/v1/auth/register \
+		-H "Content-Type: application/json" \
+		-d '{"email":"test@example.com","password":"securepassword"}' | jq
 
 login:
-	curl -X POST localhost:8080/v1/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"test@example.com","password":"securepassword"}'
+	curl -s -X POST localhost:8080/v1/auth/login \
+		-H "Content-Type: application/json" \
+		-d '{"email":"test@example.com","password":"securepassword"}' | jq
 
-# 3. Create a todo with auth
 create:
-	curl -X POST localhost:8080/v1/todos \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer ${TOKEN}" \
-  -d '{"title":"First authenticated todo"}'
+	curl -s -X POST localhost:8080/v1/todos \
+		-H "Content-Type: application/json" \
+		-H "Authorization: Bearer ${TOKEN}" \
+		-d '{"title":"First authenticated todo"}' | jq
 
-# 4. List todos with auth
 list:
-	curl localhost:8080/v1/todos \
-  -H "Authorization: Bearer ${TOKEN}"
+	curl -s localhost:8080/v1/todos \
+		-H "Authorization: Bearer ${TOKEN}" | jq
 
-# 5.  without token — should get 401
 fail:
-	curl localhost:8080/v1/todos
-
-# First call — should hit Postgres
-1:
-	curl localhost:8080/v1/todos \
-  -H "Authorization: Bearer ${TOKEN}"
-
-# Second call — should hit Redis only
-2:
-	curl localhost:8080/v1/todos \
-  -H "Authorization: Bearer ${TOKEN}"
+	curl -s localhost:8080/v1/todos | jq
 
 verify:
 	docker exec -it todo-redis redis-cli keys "*"
