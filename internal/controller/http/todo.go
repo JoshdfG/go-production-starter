@@ -33,6 +33,8 @@ func (h *TodoHandler) Register(r *gin.RouterGroup) {
 // @Success     200 {array}  entity.Todo
 // @Failure     500 {object} ErrorResponse
 // @Router      /todos [get]
+// @Security BearerAuth
+// @Router /todos [get]
 func (h *TodoHandler) list(c *gin.Context) {
 	todos, err := h.uc.ListTodos()
 	if err != nil {
@@ -51,6 +53,8 @@ func (h *TodoHandler) list(c *gin.Context) {
 // @Success     201     {object} entity.Todo
 // @Failure     400     {object} ErrorResponse
 // @Router      /todos [post]
+// @Security BearerAuth
+// @Router /todos [post]
 func (h *TodoHandler) create(c *gin.Context) {
 	var body CreateTodoRequest
 	if err := c.ShouldBindJSON(&body); err != nil {
@@ -73,6 +77,8 @@ func (h *TodoHandler) create(c *gin.Context) {
 // @Success     204
 // @Failure     404 {object} ErrorResponse
 // @Router      /todos/{id} [patch]
+// @Security BearerAuth
+// @Router /todos/{id} [patch]
 func (h *TodoHandler) complete(c *gin.Context) {
 	id := c.Param("id")
 	if err := h.uc.CompleteTodo(id); err != nil {
@@ -89,6 +95,8 @@ func (h *TodoHandler) complete(c *gin.Context) {
 // @Success     204
 // @Failure     404 {object} ErrorResponse
 // @Router      /todos/{id} [delete]
+// @Security BearerAuth
+// @Router /todos/{id} [delete]
 func (h *TodoHandler) delete(c *gin.Context) {
 	id := c.Param("id")
 	if err := h.uc.DeleteTodo(id); err != nil {

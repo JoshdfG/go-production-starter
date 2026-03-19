@@ -9,6 +9,9 @@ import (
 // @title           Todo Clean API
 // @version         1.0
 // @BasePath        /v1
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
 func main() {
 	cfg, err := config.New()
 	if err != nil {

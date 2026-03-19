@@ -89,6 +89,11 @@
         },
         "/todos": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Get all todos ordered by creation date",
                 "produces": [
                     "application/json"
@@ -116,6 +121,11 @@
                 }
             },
             "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Create a new todo item",
                 "consumes": [
                     "application/json"
@@ -156,6 +166,11 @@
         },
         "/todos/{id}": {
             "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Permanently delete a todo",
                 "tags": [
                     "todos"
@@ -183,6 +198,11 @@
                 }
             },
             "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Mark a todo as done",
                 "produces": [
                     "application/json"
@@ -283,6 +303,13 @@
                     "example": "something went wrong"
                 }
             }
+        }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
         }
     }
 }
