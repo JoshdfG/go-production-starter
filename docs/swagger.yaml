@@ -1,0 +1,131 @@
+basePath: /v1
+definitions:
+  entity.Todo:
+    properties:
+      CreatedAt:
+        example: "2026-03-19T03:44:11.715069+01:00"
+        type: string
+      Done:
+        example: false
+        type: boolean
+      ID:
+        example: 6f153b71-8f22-46d6-9ebb-09c35ae4f701
+        type: string
+      Title:
+        example: Learn Clean Architecture
+        type: string
+    type: object
+  http.CreateTodoRequest:
+    properties:
+      title:
+        example: Buy groceries
+        type: string
+    required:
+    - title
+    type: object
+  http.ErrorResponse:
+    properties:
+      error:
+        example: something went wrong
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: Production-grade Todo API built with Clean Architecture
+  title: Todo Clean API
+  version: 1.0.0
+paths:
+  /todos:
+    get:
+      description: Get all todos ordered by creation date
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/entity.Todo'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/http.ErrorResponse'
+      summary: List all todos
+      tags:
+      - todos
+    post:
+      consumes:
+      - application/json
+      description: Create a new todo item
+      parameters:
+      - description: Todo title
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/http.CreateTodoRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/entity.Todo'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/http.ErrorResponse'
+      summary: Create a todo
+      tags:
+      - todos
+  /todos/{id}:
+    delete:
+      description: Permanently delete a todo
+      parameters:
+      - description: Todo ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/http.ErrorResponse'
+      summary: Delete a todo
+      tags:
+      - todos
+    patch:
+      description: Mark a todo as done
+      parameters:
+      - description: Todo ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/http.ErrorResponse'
+      summary: Complete a todo
+      tags:
+      - todos
+schemes:
+- http
+- https
+securityDefinitions:
+  BearerAuth:
+    description: Type "Bearer" followed by a space and your JWT token
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

@@ -1,0 +1,9 @@
+version: "2"
+sql:
+  - engine: "postgresql"
+    queries: "internal/repo/sqlc/query.sql"
+    schema: "migrations/"
+    gen:
+      go:
+        package: "sqlcgen"
+        out: "internal/repo/sqlcgen"
