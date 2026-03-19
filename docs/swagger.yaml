@@ -121,6 +121,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/http.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: List all todos
       tags:
       - todos
@@ -146,6 +148,8 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/http.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Create a todo
       tags:
       - todos
@@ -165,6 +169,8 @@ paths:
           description: Not Found
           schema:
             $ref: '#/definitions/http.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Delete a todo
       tags:
       - todos
@@ -185,7 +191,14 @@ paths:
           description: Not Found
           schema:
             $ref: '#/definitions/http.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Complete a todo
       tags:
       - todos
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
 swagger: "2.0"

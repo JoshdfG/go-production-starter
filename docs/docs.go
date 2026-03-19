@@ -97,6 +97,11 @@ const docTemplate = `{
         },
         "/todos": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Get all todos ordered by creation date",
                 "produces": [
                     "application/json"
@@ -124,6 +129,11 @@ const docTemplate = `{
                 }
             },
             "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Create a new todo item",
                 "consumes": [
                     "application/json"
@@ -164,6 +174,11 @@ const docTemplate = `{
         },
         "/todos/{id}": {
             "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Permanently delete a todo",
                 "tags": [
                     "todos"
@@ -191,6 +206,11 @@ const docTemplate = `{
                 }
             },
             "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Mark a todo as done",
                 "produces": [
                     "application/json"
@@ -291,6 +311,13 @@ const docTemplate = `{
                     "example": "something went wrong"
                 }
             }
+        }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
         }
     }
 }`
