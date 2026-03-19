@@ -6,6 +6,9 @@ import (
 	"todo-clean/pkg/logger"
 )
 
+// @title           Todo Clean API
+// @version         1.0
+// @BasePath        /v1
 func main() {
 	cfg, err := config.New()
 	if err != nil {
