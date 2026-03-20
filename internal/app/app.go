@@ -53,7 +53,7 @@ func Run(cfg *config.Config, l zerolog.Logger) error {
 	// http
 	todoHandler := todohttp.NewTodoHandler(todoUC)
 	authHandler := todohttp.NewAuthHandler(authUC)
-	router := todohttp.NewRouter(l, todoHandler, authHandler, authUC)
+	router := todohttp.NewRouter(l, db, rdb, todoHandler, authHandler, authUC)
 
 	// graceful shutdown
 	quit := make(chan os.Signal, 1)
@@ -98,13 +98,16 @@ func newPostgres(cfg *config.Config, l zerolog.Logger) (*sql.DB, error) {
 
 func newRedis(cfg *config.Config, l zerolog.Logger) (*redis.Client, error) {
 	rdb := redis.NewClient(&redis.Options{
-		Addr:         cfg.Redis.Addr(),
-		Password:     cfg.Redis.Password,
-		DB:           cfg.Redis.DB,
-		DialTimeout:  3 * time.Second,
-		ReadTimeout:  3 * time.Second,
-		WriteTimeout: 3 * time.Second,
-		PoolSize:     10,
+		Addr:            cfg.Redis.Addr(),
+		Password:        cfg.Redis.Password,
+		DB:              cfg.Redis.DB,
+		DialTimeout:     2 * time.Second,
+		ReadTimeout:     2 * time.Second,
+		WriteTimeout:    2 * time.Second,
+		PoolSize:        10,
+		ConnMaxIdleTime: 30 * time.Second,
+		MinIdleConns:    0,
+		PoolTimeout:     2 * time.Second,
 	})
 
 	if err := rdb.Ping(context.Background()).Err(); err != nil {
