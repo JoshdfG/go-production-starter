@@ -20,6 +20,10 @@ import (
 )
 
 func Run(cfg *config.Config, l zerolog.Logger) error {
+	// run migrations first
+	if err := runMigrations(cfg.Postgres.DSN(), l); err != nil {
+		return fmt.Errorf("migrations: %w", err)
+	}
 	// postgres
 	db, err := newPostgres(cfg, l)
 	if err != nil {
@@ -41,7 +45,15 @@ func Run(cfg *config.Config, l zerolog.Logger) error {
 	cachedRepo := repo.NewCachingRepo(todoRepo, rdb, l)
 	loggedRepo := repo.NewLoggingRepo(cachedRepo, l)
 	todoUC := usecase.NewTodoUseCase(loggedRepo)
-
+	// rate limiter
+	rl, err := todohttp.NewRateLimiter(rdb, cfg.RateLimit)
+	if err != nil {
+		return fmt.Errorf("rate limiter: %w", err)
+	}
+	l.Info().
+		Int("ip_limit", cfg.RateLimit.IPLimit).
+		Int("user_limit", cfg.RateLimit.UserLimit).
+		Msg("rate limiter ready")
 	// auth layer
 	userRepo := repo.NewUserPostgresRepo(db)
 	authUC := usecase.NewAuthUseCase(userRepo, cfg.JWT.Secret, cfg.JWT.ExpiryHours)
@@ -49,8 +61,7 @@ func Run(cfg *config.Config, l zerolog.Logger) error {
 	// http
 	todoHandler := todohttp.NewTodoHandler(todoUC)
 	authHandler := todohttp.NewAuthHandler(authUC)
-	router := todohttp.NewRouter(l, todoHandler, authHandler, authUC)
-
+	router := todohttp.NewRouter(l, db, rdb, rl, todoHandler, authHandler, authUC)
 	// graceful shutdown
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
@@ -94,13 +105,16 @@ func newPostgres(cfg *config.Config, l zerolog.Logger) (*sql.DB, error) {
 
 func newRedis(cfg *config.Config, l zerolog.Logger) (*redis.Client, error) {
 	rdb := redis.NewClient(&redis.Options{
-		Addr:         cfg.Redis.Addr(),
-		Password:     cfg.Redis.Password,
-		DB:           cfg.Redis.DB,
-		DialTimeout:  3 * time.Second,
-		ReadTimeout:  3 * time.Second,
-		WriteTimeout: 3 * time.Second,
-		PoolSize:     10,
+		Addr:            cfg.Redis.Addr(),
+		Password:        cfg.Redis.Password,
+		DB:              cfg.Redis.DB,
+		DialTimeout:     2 * time.Second,
+		ReadTimeout:     2 * time.Second,
+		WriteTimeout:    2 * time.Second,
+		PoolSize:        10,
+		ConnMaxIdleTime: 30 * time.Second,
+		MinIdleConns:    0,
+		PoolTimeout:     2 * time.Second,
 	})
 
 	if err := rdb.Ping(context.Background()).Err(); err != nil {

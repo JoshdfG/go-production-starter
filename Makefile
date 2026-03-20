@@ -22,6 +22,9 @@ test-v:
 test-all:
 	go test ./... -race -count=1 -timeout 30s
 
+test-integration:
+	go test ./internal/repo/... -v -run TestPostgresSuite -timeout 60s
+
 # ── quality ──────────────────────────────────────────────
 lint:
 	golangci-lint run ./...
@@ -55,6 +58,18 @@ docker-down:
 ps:
 	docker ps
 
+compose-up:
+	docker compose up --build -d
+
+compose-down:
+	docker compose down
+
+compose-logs:
+	docker compose logs -f app
+
+compose-fresh:
+	docker compose down -v
+	docker compose up --build -d
 # ── migrations ───────────────────────────────────────────
 migrate:
 	docker exec -i todo-postgres psql -U ${POSTGRES_USER} -d ${POSTGRES_DB} \
@@ -62,6 +77,14 @@ migrate:
 	docker exec -i todo-postgres psql -U ${POSTGRES_USER} -d ${POSTGRES_DB} \
 		< migrations/002_create_users.sql
 
+migrate-up:
+	migrate -path migrations -database "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@localhost:${POSTGRES_PORT}/${POSTGRES_DB}?sslmode=disable" up
+
+migrate-down:
+	migrate -path migrations -database "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@localhost:${POSTGRES_PORT}/${POSTGRES_DB}?sslmode=disable" down 1
+
+migrate-version:
+	migrate -path migrations -database "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@localhost:${POSTGRES_PORT}/${POSTGRES_DB}?sslmode=disable" version
 # ── api ──────────────────────────────────────────────────
 register:
 	curl -s -X POST localhost:8080/v1/auth/register \

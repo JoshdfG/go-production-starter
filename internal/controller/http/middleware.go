@@ -8,15 +8,19 @@ import (
 	"github.com/rs/zerolog"
 )
 
-// requestLogger logs every request as a structured JSON line
+// requestLogger logs every request as a structured JSON line.
 func requestLogger(logger zerolog.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
 		path := c.Request.URL.Path
 
-		c.Next() // process request
+		c.Next()
+
+		// pull request ID that was injected by requestID middleware
+		reqID, _ := c.Get(RequestIDHeader)
 
 		logger.Info().
+			Str("request_id", reqID.(string)).
 			Str("method", c.Request.Method).
 			Str("path", path).
 			Int("status", c.Writer.Status()).
@@ -27,12 +31,14 @@ func requestLogger(logger zerolog.Logger) gin.HandlerFunc {
 	}
 }
 
-// recovery catches panics and returns 500 instead of crashing
+// recovery catches panics and returns 500 instead of crashing.
 func recovery(logger zerolog.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		defer func() {
 			if err := recover(); err != nil {
+				reqID, _ := c.Get(RequestIDHeader)
 				logger.Error().
+					Str("request_id", reqID.(string)).
 					Interface("error", err).
 					Str("path", c.Request.URL.Path).
 					Msg("panic recovered")
@@ -43,12 +49,12 @@ func recovery(logger zerolog.Logger) gin.HandlerFunc {
 	}
 }
 
-// cors adds basic CORS headers
+// cors adds basic CORS headers.
 func cors() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Header("Access-Control-Allow-Origin", "*")
 		c.Header("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Request-ID")
 
 		if c.Request.Method == http.MethodOptions {
 			c.AbortWithStatus(http.StatusNoContent)

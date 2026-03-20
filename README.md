@@ -1,26 +1,69 @@
 # go-production-starter
 
 A production-ready Go backend built from scratch on Clean Architecture principles.
-No magic, no code generation beyond sqlc, no framework lock-in just Go, explicit
-dependency injection, and a structure that scales without turning into spaghetti.
+One command to run the full stack. Every decision is intentional and documented below.
 
-Built as a learning project. Every decision is intentional and documented below.
+[![CI](https://github.com/yourname/go-production-starter/actions/workflows/ci.yml/badge.svg)](https://github.com/yourname/go-production-starter/actions)
 
 ---
 
 ## Stack
 
-| Concern        | Tool                                                                        |
-| -------------- | --------------------------------------------------------------------------- |
-| HTTP framework | [Gin](https://github.com/gin-gonic/gin)                                     |
-| Database       | PostgreSQL via [pgx](https://github.com/jackc/pgx)                          |
-| SQL            | [sqlc](https://sqlc.dev) type-safe, compile-time generated                  |
-| Caching        | Redis via [go-redis](https://github.com/redis/go-redis)                     |
-| Auth           | JWT via [golang-jwt](https://github.com/golang-jwt/jwt) + bcrypt            |
-| Logging        | [zerolog](https://github.com/rs/zerolog) structured JSON                    |
-| API docs       | [Swagger](https://github.com/swaggo/swag) auto-generated                    |
-| Config         | [cleanenv](https://github.com/ilyakaznacheev/cleanenv) env vars + .env file |
-| Testing        | [testify](https://github.com/stretchr/testify) + in-memory repo             |
+| Concern        | Tool                                                                              |
+| -------------- | --------------------------------------------------------------------------------- |
+| HTTP framework | [Gin](https://github.com/gin-gonic/gin)                                           |
+| Database       | PostgreSQL via [pgx](https://github.com/jackc/pgx)                                |
+| SQL            | [sqlc](https://sqlc.dev) type-safe, compile-time generated                        |
+| Migrations     | [golang-migrate](https://github.com/golang-migrate/migrate) auto-run on startup   |
+| Caching        | Redis via [go-redis](https://github.com/redis/go-redis)                           |
+| Rate limiting  | [ulule/limiter](https://github.com/ulule/limiter) Redis-backed, per IP + per user |
+| Auth           | JWT via [golang-jwt](https://github.com/golang-jwt/jwt) + bcrypt                  |
+| Logging        | [zerolog](https://github.com/rs/zerolog) structured JSON, pretty in dev           |
+| API docs       | [Swagger](https://github.com/swaggo/swag) auto-generated from annotations         |
+| Config         | [cleanenv](https://github.com/ilyakaznacheev/cleanenv) env vars + .env file       |
+| Testing        | [testify](https://github.com/stretchr/testify) unit + integration test suites     |
+| Container      | Docker + Docker Compose multi-stage build, non-root user                          |
+| CI             | GitHub Actions test, lint, build, format on every push                              |
+
+---
+
+## Quick start
+
+### Prerequisites
+
+- [Docker](https://docs.docker.com/get-docker/)
+- [Docker Compose](https://docs.docker.com/compose/)
+
+### One command
+
+```bash
+git clone https://github.com/yourname/go-production-starter
+cd go-production-starter
+cp .env.example .env
+make compose-up
+```
+
+That's it. Docker Compose builds the app, starts Postgres and Redis, waits for them
+to be healthy, then starts the app which runs migrations automatically.
+
+Check it's running:
+
+```bash
+curl localhost:8080/healthz
+# {"postgres":"ok","redis":"ok","status":"ok"}
+```
+
+Interactive API docs: http://localhost:8080/swagger/index.html
+
+### Local development (without Docker app container)
+
+```bash
+# start just the infrastructure
+docker compose up postgres redis -d
+
+# run the app locally with hot reload
+make run
+```
 
 ---
 
@@ -30,203 +73,143 @@ Built as a learning project. Every decision is intentional and documented below.
 .
 ├── cmd/
 │   └── app/
-│       └── main.go                   # Entry point. Wires all layers together.
-│                                     # The only file that knows about everything.
+│       └── main.go                   # Entry point loads config, inits logger, calls app.Run
 │
 ├── config/
-│   └── config.go                     # Typed config structs. Reads from env vars
-│                                     # or .env file. Fails fast if required fields
-│                                     # are missing.
+│   └── config.go                     # Typed config structs. Reads from env vars or .env.
+│                                     # Fails fast on startup if required fields are missing.
 │
 ├── docs/                             # Auto-generated by swag. Never edit manually.
-│   ├── docs.go
-│   ├── swagger.json
-│   └── swagger.yaml
 │
 ├── internal/
+│   ├── app/
+│   │   ├── app.go                    # Run() — wires all layers, graceful shutdown.
+│   │   └── migrate.go                # Runs golang-migrate on startup. Tracks version.
+│   │
 │   ├── entity/
-│   │   ├── todo.go                   # Pure domain struct. No imports, no tags.
-│   │   └── user.go                   # Password field has json:"-" never leaks.
+│   │   ├── todo.go                   # Pure domain struct. No imports, no framework tags.
+│   │   └── user.go                   # Password field has json:"-" never leaks in responses.
 │   │
 │   ├── usecase/
-│   │   ├── interfaces.go             # TodoRepository interface defined HERE.
-│   │   ├── auth_interfaces.go        # UserRepository interface defined HERE.
-│   │   ├── todo.go                   # Todo business logic. No HTTP, no DB.
-│   │   ├── auth.go                   # Auth business logic. Register, login, JWT.
-│   │   └── todo_test.go              # 7 unit tests. Zero infrastructure needed.
+│   │   ├── interfaces.go             # TodoRepository interface defined in the inner layer.
+│   │   ├── auth_interfaces.go        # UserRepository interface defined in the inner layer.
+│   │   ├── todo.go                   # Todo business logic. No HTTP, no DB, no framework.
+│   │   ├── auth.go                   # Auth logic register, login, JWT sign/validate.
+│   │   └── todo_test.go              # 7 unit tests. Zero infrastructure. Runs in milliseconds.
 │   │
 │   ├── repo/
-│   │   ├── memory.go                 # In-memory TodoRepository. Used in tests.
+│   │   ├── memory.go                 # In-memory TodoRepository. Used in unit tests.
 │   │   ├── postgres.go               # Postgres TodoRepository. Wraps sqlcgen.
 │   │   ├── user_postgres.go          # Postgres UserRepository.
-│   │   ├── logging.go                # Decorator: logs every repo call.
-│   │   ├── cache.go                  # Decorator: Redis cache with MISS/SET/HIT.
-│   │   └── sqlcgen/                  # Generated by sqlc. DO NOT EDIT.
-│   │       ├── db.go
-│   │       ├── models.go
-│   │       └── query.sql.go
+│   │   ├── logging.go                # Decorator logs every repo call via zerolog.
+│   │   ├── cache.go                  # Decorator Redis MISS/SET/HIT with TTL.
+│   │   ├── postgres_test.go          # 7 integration tests against real Postgres.
+│   │   └── sqlcgen/                  # Generated by sqlc. Never edit manually.
 │   │
 │   └── controller/
 │       └── http/
-│           ├── router.go             # Gin engine, middleware stack, route groups.
-│           ├── middleware.go         # Request logger, recovery, CORS.
-│           ├── jwt_middleware.go     # JWT validation, injects userID into context.
+│           ├── router.go             # Gin engine, middleware stack, route groups, health check.
+│           ├── middleware.go         # Request logger (with request_id), recovery, CORS.
+│           ├── request_id.go         # Injects X-Request-ID honours client ID or generates one.
+│           ├── jwt_middleware.go     # Validates Bearer token, injects userID into context.
+│           ├── rate_limit.go         # Redis-backed limiter 100/min per IP, 1000/min per user.
 │           ├── todo.go               # Todo handlers + Swagger annotations.
-│           ├── auth.go               # Auth handlers (register, login).
+│           ├── auth.go               # Auth handlers — register, login.
 │           └── types.go              # Request/response structs.
 │
 ├── migrations/
-│   ├── 001_create_todos.sql
-│   └── 002_create_users.sql
+│   ├── 000001_create_todos.up.sql
+│   ├── 000001_create_todos.down.sql
+│   ├── 000002_create_users.up.sql
+│   └── 000002_create_users.down.sql
 │
 ├── internal/repo/sqlc/
-│   └── query.sql                     # SQL source. sqlc reads this to generate Go.
+│   └── query.sql                     # SQL source. sqlc reads this to generate typed Go.
 │
 ├── pkg/
 │   └── logger/
-│       └── logger.go                 # Zerolog setup. JSON output, level from config.
+│       └── logger.go                 # Zerolog setup. Pretty console in dev, JSON in production.
 │
-├── .env                              # Local secrets. Never committed.
-├── .env.example                      # Safe template. Always committed.
+├── .env.example                      # Safe config template. Always committed.
+├── .env                              # Real secrets. Never committed.
+├── .golangci.yml                     # Linter config. Excludes generated code.
 ├── sqlc.yaml                         # sqlc configuration.
-├── go.mod
-└── go.sum
+├── Dockerfile                        # Multi-stage build. Final image ~15MB, non-root user.
+├── docker-compose.yml                # Full stack — app, postgres, redis with health checks.
+└── Makefile                          # All common tasks as make targets.
 ```
 
 ---
 
 ## Architecture
 
-This project follows Clean Architecture as described by Robert Martin (Uncle Bob),
-adapted pragmatically for Go backends.
+Clean Architecture — inner layer knows nothing about the outer layer.
+All cross-layer communication goes through interfaces defined in the inner layer.
 
-### The layers
+### Layer diagram
 
 ```
-  ┌──────────────────────────────────────────────┐
-  │           Controller (HTTP / Gin)            │  outer layer
-  │   router, middleware, handlers, JWT guard    │
-  └───────────────────┬──────────────────────────┘
-                      │ calls via usecase methods
-  ┌───────────────────▼──────────────────────────┐
-  │                 UseCase                      │  inner layer
-  │         todo.go · auth.go                    │
-  │   defines Repository interfaces itself       │
-  └───────────────────┬──────────────────────────┘
-                      │ calls via interface boundary
-  ┌───────────────────▼──────────────────────────┐
-  │              Repository chain                │  outer layer
-  │   LoggingRepo → CachingRepo → PostgresRepo   │
-  └───────────────────┬──────────────────────────┘
-                      │
-  ┌───────────────────▼──────────────────────────┐
-  │          Postgres + Redis                    │  infrastructure
-  └──────────────────────────────────────────────┘
+  ┌──────────────────────────────────────────────────────┐
+  │              Controller (HTTP / Gin)                 │  outer
+  │  requestID → logger → recovery → CORS → rateLimit   │
+  │  JWT guard → handlers                                │
+  └─────────────────────┬────────────────────────────────┘
+                        │ calls via usecase methods
+  ┌─────────────────────▼────────────────────────────────┐
+  │                   UseCase                            │  inner
+  │           todo.go  ·  auth.go                        │
+  │      defines Repository interfaces itself            │
+  └─────────────────────┬────────────────────────────────┘
+                        │ calls via interface (inversion point)
+  ┌─────────────────────▼────────────────────────────────┐
+  │             Repository decorator chain               │  outer
+  │      LoggingRepo → CachingRepo → PostgresRepo        │
+  └─────────────────────┬────────────────────────────────┘
+                        │
+  ┌─────────────────────▼────────────────────────────────┐
+  │              Postgres  +  Redis                      │  infra
+  └──────────────────────────────────────────────────────┘
 ```
 
 ### The key rule
 
-The `usecase` package has **no imports from the outer layer**. It only imports
-`entity` and the standard library. This means:
+`internal/usecase` has **zero imports from the outer layer**. It only imports
+`internal/entity` and the standard library. This means:
 
-- Business logic is testable without a database, HTTP server, or any infrastructure
-- You can swap Postgres for any other database by writing a new file in `repo/`
-- You can add cross-cutting concerns as decorators without touching business logic
+- Business logic tests need no database, no Redis, no HTTP server
+- Swap Postgres for any other database — write a new file in `internal/repo/`
+- Add metrics, tracing, or circuit breaking as decorators — zero changes to existing code
 
-### The interface inversion
+### Request lifecycle
 
-The interface is defined _inside_ the usecase package — not the repository package.
-This is what makes the dependency point inward:
-
-```go
-// internal/usecase/interfaces.go
-package usecase
-
-// The inner layer defines the contract.
-// The outer layer implements it.
-type TodoRepository interface {
-    GetAll() ([]entity.Todo, error)
-    GetByID(id string) (*entity.Todo, error)
-    Save(todo *entity.Todo) error
-    Delete(id string) error
-}
+```
+HTTP request
+  → requestID middleware    generates or honours X-Request-ID header
+  → requestLogger           logs method, path, status, latency, request_id
+  → recovery                catches panics, returns 500
+  → CORS                    sets Access-Control headers
+  → IPRateLimit             100 req/min per IP (public routes)
+  → JWT middleware          validates Bearer token, injects userID
+  → UserRateLimit           1000 req/min per authenticated user
+  → Handler                 binds JSON, calls usecase
+  → UseCase                 runs business rules, calls repository interface
+  → LoggingRepo             logs every call with zerolog
+  → CachingRepo             checks Redis HIT returns early, MISS falls through
+  → PostgresRepo            executes sqlc query, populates cache on MISS
+HTTP response               X-Request-ID echoed back to client
 ```
 
-### The decorator chain
-
-Three repository decorators compose in `main.go`. The usecase sees one interface:
+### Repository decorator chain
 
 ```go
+// internal/app/app.go — the only place that knows about all layers
 todoRepo   := repo.NewPostgresRepo(db)
 cachedRepo := repo.NewCachingRepo(todoRepo, rdb, l)
 loggedRepo := repo.NewLoggingRepo(cachedRepo, l)
 todoUC     := usecase.NewTodoUseCase(loggedRepo)
 ```
 
-Each decorator implements `TodoRepository`. Each is unaware of the others.
-Add metrics, tracing, or a circuit breaker the same way zero changes to existing code.
-
-### Request lifecycle
-
-```
-HTTP request
-    → JWT middleware        (validates Bearer token, injects userID)
-    → Handler               (binds JSON, calls usecase)
-    → UseCase               (business rules, calls repository interface)
-    → LoggingRepo           (logs call with zerolog)
-    → CachingRepo           (checks Redis HIT returns early, MISS falls through)
-    → PostgresRepo          (sqlc query, populates cache on MISS)
-    → HTTP response
-    → Request logger        (logs method, path, status, latency)
-```
-
----
-
-## Quick start
-
-### Prerequisites
-
-- Go 1.21+
-- Docker
-- sqlc (`brew install sqlc`)
-
-### Run locally
-
-```bash
-# 1. Clone
-git clone https://github.com/yourname/go-production-starter
-cd go-production-starter
-
-# 2. Copy env and fill in values
-cp .env.example .env
-
-# 3. Start infrastructure
-docker run --name todo-postgres \
-  -e POSTGRES_USER=todo \
-  -e POSTGRES_PASSWORD=todo \
-  -e POSTGRES_DB=tododb \
-  -p 5432:5432 -d postgres:16-alpine
-
-docker run --name todo-redis \
-  -p 6379:6379 -d redis:7-alpine
-
-# 4. Apply migrations
-docker exec -i todo-postgres psql -U todo -d tododb < migrations/001_create_todos.sql
-docker exec -i todo-postgres psql -U todo -d tododb < migrations/002_create_users.sql
-
-# 5. Run
-go run ./cmd/app
-```
-
-### Test
-
-```bash
-# Unit tests — no database, no Redis, no Docker needed
-go test ./internal/usecase/...
-
-# Verbose
-go test ./internal/usecase/... -v
-```
+Add a new layer metrics, tracing, circuit breaker without touching existing code.
 
 ---
 
@@ -234,100 +217,183 @@ go test ./internal/usecase/... -v
 
 Base URL: `http://localhost:8080/v1`
 
-Interactive docs: `http://localhost:8080/swagger/index.html`
+Swagger UI: `http://localhost:8080/swagger/index.html`
 
-### Auth (public)
+### Auth (public, IP rate limited)
 
 ```bash
 # Register
-curl -X POST localhost:8080/v1/auth/register \
+curl -s -X POST localhost:8080/v1/auth/register \
   -H "Content-Type: application/json" \
-  -d '{"email":"user@example.com","password":"securepassword"}'
+  -d '{"email":"user@example.com","password":"securepassword"}' | jq
 
 # Login — returns JWT token
-curl -X POST localhost:8080/v1/auth/login \
+curl -s -X POST localhost:8080/v1/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"user@example.com","password":"securepassword"}'
+  -d '{"email":"user@example.com","password":"securepassword"}' | jq
 ```
 
-### Todos (JWT required)
+### Todos (JWT required, user rate limited)
 
 ```bash
 TOKEN="your-jwt-token"
 
 # Create
-curl -X POST localhost:8080/v1/todos \
+curl -s -X POST localhost:8080/v1/todos \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \
-  -d '{"title":"Learn Clean Architecture"}'
+  -d '{"title":"Learn Clean Architecture"}' | jq
 
 # List
-curl localhost:8080/v1/todos \
-  -H "Authorization: Bearer $TOKEN"
+curl -s localhost:8080/v1/todos \
+  -H "Authorization: Bearer $TOKEN" | jq
 
 # Complete
-curl -X PATCH localhost:8080/v1/todos/<id> \
+curl -s -X PATCH localhost:8080/v1/todos/<id> \
   -H "Authorization: Bearer $TOKEN"
 
 # Delete
-curl -X DELETE localhost:8080/v1/todos/<id> \
+curl -s -X DELETE localhost:8080/v1/todos/<id> \
   -H "Authorization: Bearer $TOKEN"
-
-# Without token — returns 401
-curl localhost:8080/v1/todos
-# {"error":"authorization header required"}
 ```
+
+### Health check
+
+```bash
+curl -s localhost:8080/healthz | jq
+# {"postgres":"ok","redis":"ok","status":"ok"}
+
+# when a dependency is down
+# {"postgres":"ok","redis":"unavailable","status":"degraded"}  HTTP 503
+```
+
+### Rate limit headers
+
+Every response includes:
+
+```
+X-RateLimit-Limit:     100
+X-RateLimit-Remaining: 99
+X-RateLimit-Reset:     1234567890
+```
+
+When exceeded:
+
+```json
+HTTP 429
+{"error": "rate limit exceeded — try again later"}
+```
+
+### Request tracing
+
+Every request gets a unique `X-Request-ID`. Send your own or let the server generate one:
+
+```bash
+curl -si localhost:8080/healthz -H "X-Request-ID: my-trace-id-123"
+# X-Request-Id: my-trace-id-123  ← echoed back in response
+```
+
+Every log line for that request includes `request_id=my-trace-id-123`.
+
+---
+
+## Testing
+
+```bash
+# unit tests — no infrastructure needed, runs in milliseconds
+make test
+
+# unit tests verbose
+make test-v
+
+# integration tests — requires Postgres running
+make test-integration
+
+# all tests
+make test-all
+```
+
+### Test architecture
+
+```
+internal/usecase/todo_test.go     unit tests — InMemoryRepo, zero infra, 7 tests
+internal/repo/postgres_test.go    integration tests — real Postgres, 7 tests
+```
+
+Unit tests use `InMemoryRepo` which satisfies the same `TodoRepository` interface
+as `PostgresRepo`. Integration tests use a real database with migrations applied,
+truncating tables between each test for full isolation.
 
 ---
 
 ## Configuration
 
 All config is read from environment variables or a `.env` file.
-The app fails fast on startup if required fields are missing.
+Copy `.env.example` to `.env` and fill in the required fields.
 
-| Variable            | Required | Default       | Description                 |
-| ------------------- | -------- | ------------- | --------------------------- |
-| `APP_NAME`          |          | `todo-clean`  | Application name            |
-| `APP_VERSION`       |          | `1.0.0`       | Application version         |
-| `APP_ENV`           |          | `development` | Environment name            |
-| `HTTP_PORT`         |          | `8080`        | HTTP server port            |
-| `POSTGRES_USER`     | ✅       | —             | Postgres username           |
-| `POSTGRES_PASSWORD` | ✅       | —             | Postgres password           |
-| `POSTGRES_DB`       | ✅       | —             | Postgres database name      |
-| `POSTGRES_HOST`     |          | `localhost`   | Postgres host               |
-| `POSTGRES_PORT`     |          | `5432`        | Postgres port               |
-| `POSTGRES_SSLMODE`  |          | `disable`     | SSL mode                    |
-| `JWT_SECRET`        | ✅       | —             | JWT signing secret          |
-| `JWT_EXPIRY_HOURS`  |          | `24`          | Token expiry in hours       |
-| `REDIS_HOST`        |          | `localhost`   | Redis host                  |
-| `REDIS_PORT`        |          | `6379`        | Redis port                  |
-| `REDIS_PASSWORD`    |          | ``            | Redis password              |
-| `REDIS_DB`          |          | `0`           | Redis DB index              |
-| `LOG_LEVEL`         |          | `info`        | debug / info / warn / error |
+| Variable            | Required | Default       | Description                                               |
+| ------------------- | -------- | ------------- | --------------------------------------------------------- |
+| `APP_NAME`          |          | `todo-clean`  | Application name                                          |
+| `APP_VERSION`       |          | `1.0.0`       | Application version                                       |
+| `APP_ENV`           |          | `development` | `development` = pretty logs, `production` = JSON          |
+| `HTTP_PORT`         |          | `8080`        | HTTP server port                                          |
+| `POSTGRES_USER`     | ✅       | —             | Postgres username                                         |
+| `POSTGRES_PASSWORD` | ✅       | —             | Postgres password                                         |
+| `POSTGRES_DB`       | ✅       | —             | Postgres database name                                    |
+| `POSTGRES_HOST`     |          | `localhost`   | Postgres host                                             |
+| `POSTGRES_PORT`     |          | `5432`        | Postgres port                                             |
+| `POSTGRES_SSLMODE`  |          | `disable`     | `disable` for local, `require` for production             |
+| `JWT_SECRET`        | ✅       | —             | JWT signing secret use a long random string in production |
+| `JWT_EXPIRY_HOURS`  |          | `24`          | Token expiry in hours                                     |
+| `REDIS_HOST`        |          | `localhost`   | Redis host                                                |
+| `REDIS_PORT`        |          | `6379`        | Redis port                                                |
+| `REDIS_PASSWORD`    |          | ``            | Redis password                                            |
+| `REDIS_DB`          |          | `0`           | Redis DB index                                            |
+| `LOG_LEVEL`         |          | `info`        | `debug` / `info` / `warn` / `error`                       |
+| `RATE_LIMIT_IP`     |          | `100`         | Requests per minute per IP (public routes)                |
+| `RATE_LIMIT_USER`   |          | `1000`        | Requests per minute per authenticated user                |
 
 ---
 
 ## Logging
 
-Every log line is structured JSON with `app`, `version`, `time`, and `level` as
-standard fields. Components add their own context:
-
 ```json
+{"level":"info","app":"todo-clean","version":"1.0.0","port":"8080","message":"listening"}
+{"level":"info","method":"POST","path":"/v1/todos","status":201,"latency":27.3,"request_id":"f1b1b53c","message":"request"}
 {"level":"debug","component":"cache","key":"todos:all","message":"cache MISS"}
 {"level":"debug","component":"cache","key":"todos:all","message":"cache SET"}
 {"level":"debug","component":"cache","key":"todos:all","count":4,"message":"cache HIT"}
 {"level":"debug","component":"repo","id":"abc123","title":"Buy milk","message":"Save called"}
-{"level":"info","method":"POST","path":"/v1/todos","status":201,"latency":27.3,"message":"request"}
 ```
 
-Set `LOG_LEVEL=info` in production to silence debug-level repo and cache logs.
-Set `LOG_LEVEL=debug` locally to see every cache hit and database call.
+Set `APP_ENV=production` for pure JSON. Set `APP_ENV=development` for coloured
+console output with file and line numbers. Set `LOG_LEVEL=info` in production to
+silence the debug-level repo and cache lines.
 
 ---
 
 ## Database
 
 SQL is managed with [sqlc](https://sqlc.dev). Write plain SQL, get typed Go functions.
+Migrations are managed with [golang-migrate](https://github.com/golang-migrate/migrate)
+and run automatically on app startup.
+
+### Add a migration
+
+```bash
+# create new migration files
+touch migrations/000003_add_column.up.sql
+touch migrations/000003_add_column.down.sql
+
+# migrations run automatically on next startup
+make run
+```
+
+### Add a query
+
+1. Add SQL to `internal/repo/sqlc/query.sql` with a `-- name: MyQuery :one` comment
+2. Run `sqlc generate`
+3. Call the generated function from `internal/repo/postgres.go`
 
 ### Regenerate after schema changes
 
@@ -335,13 +401,55 @@ SQL is managed with [sqlc](https://sqlc.dev). Write plain SQL, get typed Go func
 sqlc generate
 ```
 
-Generated files live in `internal/repo/sqlcgen/`. Never edit them manually.
+---
 
-### Add a new query
+## Docker
 
-1. Add SQL to `internal/repo/sqlc/query.sql` with a `-- name: MyQuery :one` comment
-2. Run `sqlc generate`
-3. Call the generated function from the relevant file in `internal/repo/`
+### Full stack
+
+```bash
+make compose-up      # build + start all services
+make compose-down    # stop all services
+make compose-logs    # tail app logs
+make compose-fresh   # wipe volumes + rebuild from scratch
+```
+
+### Build info
+
+The Dockerfile uses a multi-stage build:
+
+- **Builder stage**: Go 1.25 Alpine — compiles the binary
+- **Final stage**: Alpine 3.21 — contains only the binary + ca-certificates + tzdata
+
+Final image is ~15MB. Runs as a non-root user (`appuser`) for security.
+
+---
+
+## Makefile targets
+
+```bash
+make run              # go run ./cmd/app
+make build            # compile to bin/app
+make test             # unit tests with race detector
+make test-v           # unit tests verbose
+make test-integration # integration tests against real Postgres
+make test-all         # all tests
+make lint             # golangci-lint
+make fmt              # gofmt + goimports
+make tidy             # go mod tidy
+make swagger          # regenerate swagger docs
+make compose-up       # docker compose up --build -d
+make compose-down     # docker compose down
+make compose-logs     # docker compose logs -f app
+make compose-fresh    # docker compose down -v + up --build -d
+make migrate-up       # run migrations manually
+make migrate-down     # roll back last migration
+make migrate-version  # show current migration version
+make register         # curl register endpoint
+make login            # curl login endpoint
+make create           # curl create todo (requires TOKEN=)
+make list             # curl list todos (requires TOKEN=)
+```
 
 ---
 
@@ -349,26 +457,23 @@ Generated files live in `internal/repo/sqlcgen/`. Never edit them manually.
 
 The same pattern every time:
 
-1. Add/update the struct in `internal/entity/`
-2. Add the method to the interface in `internal/usecase/interfaces.go`
-3. Implement the business logic in `internal/usecase/`
-4. Write unit tests in `internal/usecase/` using `InMemoryRepo` no DB needed
-5. Add the SQL query to `internal/repo/sqlc/query.sql` and run `sqlc generate`
-6. Implement the method in `internal/repo/postgres.go` and `internal/repo/memory.go`
-7. Add the HTTP handler in `internal/controller/http/`
-8. Run `swag init -g cmd/app/main.go --output docs` to regenerate Swagger docs
+1. Add/update struct in `internal/entity/`
+2. Add method to interface in `internal/usecase/interfaces.go`
+3. Implement business logic in `internal/usecase/`
+4. Write unit tests in `internal/usecase/` using `InMemoryRepo` — no DB needed
+5. Add SQL to `internal/repo/sqlc/query.sql` and run `sqlc generate`
+6. Implement in `internal/repo/postgres.go` and `internal/repo/memory.go`
+7. Add integration test in `internal/repo/postgres_test.go`
+8. Add HTTP handler in `internal/controller/http/`
+9. Run `make swagger` to regenerate docs
 
-Business logic and storage never need to change at the same time. That's the point.
+Business logic and storage never need to change at the same time.
 
 ---
 
 ## Swapping components
 
 ### Switch HTTP framework
-
-### Switch database
-
-Add a new file in `internal/repo/` implementing `TodoRepository`. Change two lines in `main.go`.
 
 ### Add a metrics layer
 
@@ -380,60 +485,86 @@ type MetricsRepo struct {
 // implement TodoRepository, increment counter on each call
 ```
 
-Wire in `main.go`. Nothing else changes.
+Wire in `internal/app/app.go`. Nothing else changes.
 
 ### Disable caching
 
 ```go
-// main.go — remove one line, point directly at postgres
-loggedRepo := repo.NewLoggingRepo(todoRepo, l)
+// internal/app/app.go — remove one line
+loggedRepo := repo.NewLoggingRepo(todoRepo, l) // point directly at postgres
+```
+
+### Change rate limits
+
+Update `.env` — no code changes needed:
+
+```bash
+RATE_LIMIT_IP=50
+RATE_LIMIT_USER=500
 ```
 
 ---
 
 ## Caching
 
-Redis caches `GetAll` and `GetByID` results with a 5-minute TTL.
-On any write (`Save`, `Delete`), affected keys are invalidated immediately.
+Redis caches `GetAll` and `GetByID` with a 5-minute TTL.
+Writes invalidate affected keys immediately.
 
 ```
-First request:  cache MISS → Postgres query → cache SET  (~10ms)
-Subsequent:     cache HIT  → Redis only                  (~0.5ms)
+First request:  cache MISS → Postgres → cache SET  (~10ms)
+Subsequent:     cache HIT  → Redis only             (~0.5ms)
 After write:    cache invalidated → next read hits Postgres
 ```
 
-Cache keys:
-
-- `todo:<id>` — individual todo by ID
+Cache keys: `todos:all` and `todo:<id>`
 
 ---
 
-production reference. This repo exists to understand _why_ the template is structured
+## CI
 
-[go-clean-template](https://github.com/evrone/go-clean-template) is an excellent
-| | go-production-starter | go-clean-template |
-| -------- | --------------------- | ------------------------- |
-| Domains | Todo + Auth | Translation (example) |
-| | go-production-starter | go-clean-template |
-| DB layer | sqlc | Squirrel query builder |
-| Domains | Todo + Auth | Translation (example) |
-| Servers | REST only | REST + gRPC + AMQP + NATS |
-| DB layer | sqlc | Squirrel query builder |
-| Caching | Redis decorator | Not included |
-| Auth | JWT built-in | Not included |
-| Purpose | Learn + extend | Production reference |
-| Caching | Redis decorator | Not included |
-| Auth | JWT built-in | Not included |
-| Purpose | Learn + extend | Production reference |
+| Job              | What it checks                     |
+| ---------------- | ---------------------------------- |
+| Test             | Unit tests with race detector      |
+| Integration Test | Repo tests against real Postgres   |
+| Lint             | golangci-lint with project ruleset |
+| Build            | Binary compiles cleanly            |
+| Format           | gofmt + go vet pass                |
+| Build            | Binary compiles cleanly            |
+| Format           | gofmt + go vet pass                |
 
 ---
 
 ## Roadmap
 
-- [ ] Docker Compose for full local stack
-- [ ] Rate limiting middleware
+- [ ] Prometheus metrics endpoint
 - [ ] Pagination on list endpoints
-- [ ] User-scoped todos (todos belong to the authenticated user)
-- [ ] Integration tests with real Postgres
-- [ ] Graceful shutdown
-- [ ] Health check with dependency status (Postgres, Redis)
+- [ ] User-scoped todos
+- [ ] Email service (Resend or SMTP)
+- [ ] File uploads (S3)
+- [ ] Background job queue
+- [ ] OpenTelemetry distributed tracing
+- [ ] Refresh token rotation
+- [ ] RBAC (roles and permissions)
+
+---
+
+## Why not use go-clean-template directly?
+
+production reference. This repo exists to understand _why_ it's structured the way
+
+[go-clean-template](https://github.com/evrone/go-clean-template) is an excellent
+production reference. This repo exists to understand _why_ it's structured the way
+| | go-production-starter | go-clean-template |
+| | go-production-starter | go-clean-template |
+| Domains | Todo + Auth | Translation (example) |
+| Domains | Todo + Auth | Translation (example) |
+| Servers | REST only | REST + gRPC + AMQP + NATS |
+| DB layer | sqlc | Squirrel query builder |
+| Caching | Redis decorator | Not included |
+| Rate limiting | Redis-backed | Not included |
+| Auth | JWT + bcrypt | Not included |
+| Migrations | golang-migrate auto-run | Manual |
+| Docker | Multi-stage + Compose | Basic |
+| Purpose | Learn + extend | Production reference |
+| Docker | Multi-stage + Compose | Basic |
+
