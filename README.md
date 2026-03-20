@@ -3,7 +3,7 @@
 A production-ready Go backend built from scratch on Clean Architecture principles.
 One command to run the full stack. Every decision is intentional and documented below.
 
-[![CI](https://github.com/yourname/go-production-starter/actions/workflows/ci.yml/badge.svg)](https://github.com/yourname/go-production-starter/actions)
+[![CI](https://github.com/joshdfg/go-production-starter/actions/workflows/ci.yml/badge.svg)](https://github.com/joshdfg/go-production-starter/actions)
 
 ---
 
@@ -23,7 +23,7 @@ One command to run the full stack. Every decision is intentional and documented 
 | Config         | [cleanenv](https://github.com/ilyakaznacheev/cleanenv) env vars + .env file       |
 | Testing        | [testify](https://github.com/stretchr/testify) unit + integration test suites     |
 | Container      | Docker + Docker Compose multi-stage build, non-root user                          |
-| CI             | GitHub Actions test, lint, build, format on every push                              |
+| CI             | GitHub Actions test, lint, build, format on every push                            |
 
 ---
 
