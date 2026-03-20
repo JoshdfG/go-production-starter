@@ -9,9 +9,11 @@ import (
 // @title           Todo Clean API
 // @version         1.0
 // @BasePath        /v1
+
 // @securityDefinitions.apikey BearerAuth
 // @in header
 // @name Authorization
+// @description Enter JWT token with **Bearer prefix**, e.g. "Bearer {token}"
 func main() {
 	cfg, err := config.New()
 	if err != nil {

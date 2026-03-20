@@ -315,6 +315,7 @@ const docTemplate = `{
     },
     "securityDefinitions": {
         "BearerAuth": {
+            "description": "Enter JWT token with **Bearer prefix**, e.g. \"Bearer {token}\"",
             "type": "apiKey",
             "name": "Authorization",
             "in": "header"
