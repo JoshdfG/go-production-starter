@@ -555,8 +555,7 @@ production reference. This repo exists to understand _why_ it's structured the w
 [go-clean-template](https://github.com/evrone/go-clean-template) is an excellent
 production reference. This repo exists to understand _why_ it's structured the way
 | | go-production-starter | go-clean-template |
-| | go-production-starter | go-clean-template |
-| Domains | Todo + Auth | Translation (example) |
+| ------------- | ----------------------- | ------------------------- |
 | Domains | Todo + Auth | Translation (example) |
 | Servers | REST only | REST + gRPC + AMQP + NATS |
 | DB layer | sqlc | Squirrel query builder |
@@ -566,4 +565,3 @@ production reference. This repo exists to understand _why_ it's structured the w
 | Migrations | golang-migrate auto-run | Manual |
 | Docker | Multi-stage + Compose | Basic |
 | Purpose | Learn + extend | Production reference |
-| Docker | Multi-stage + Compose | Basic |
