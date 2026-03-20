@@ -87,10 +87,16 @@ jobs:
             sleep 2
           done
 
+      # - name: Apply migrations
+      #   run: |
+      #     PGPASSWORD=todo psql -h localhost -U todo -d tododb -f migrations/000001_create_todos.up.sql
+      #     PGPASSWORD=todo psql -h localhost -U todo -d tododb -f migrations/000002_create_users.up.sql
       - name: Apply migrations
         run: |
-          PGPASSWORD=todo psql -h localhost -U todo -d tododb -f migrations/001_create_todos.sql
-          PGPASSWORD=todo psql -h localhost -U todo -d tododb -f migrations/002_create_users.sql
+          PGPASSWORD=todo psql -h localhost -U todo -d tododb \
+            -f migrations/000001_create_todos.up.sql
+          PGPASSWORD=todo psql -h localhost -U todo -d tododb \
+            -f migrations/000002_create_users.up.sql
 
       - name: Run unit tests
         run: go test ./internal/usecase/... -v -race -count=1

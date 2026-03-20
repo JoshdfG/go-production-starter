@@ -20,6 +20,10 @@ import (
 )
 
 func Run(cfg *config.Config, l zerolog.Logger) error {
+	// run migrations first
+	if err := runMigrations(cfg.Postgres.DSN(), l); err != nil {
+		return fmt.Errorf("migrations: %w", err)
+	}
 	// postgres
 	db, err := newPostgres(cfg, l)
 	if err != nil {
