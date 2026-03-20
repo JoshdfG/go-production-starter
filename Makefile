@@ -22,6 +22,9 @@ test-v:
 test-all:
 	go test ./... -race -count=1 -timeout 30s
 
+test-integration:
+	go test ./internal/repo/... -v -run TestPostgresSuite -timeout 60s
+
 # ── quality ──────────────────────────────────────────────
 lint:
 	golangci-lint run ./...
