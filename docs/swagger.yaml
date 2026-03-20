@@ -198,6 +198,7 @@ paths:
       - todos
 securityDefinitions:
   BearerAuth:
+    description: Enter JWT token with **Bearer prefix**, e.g. "Bearer {token}"
     in: header
     name: Authorization
     type: apiKey
