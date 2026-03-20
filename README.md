@@ -37,7 +37,7 @@ One command to run the full stack. Every decision is intentional and documented 
 ### One command
 
 ```bash
-git clone https://github.com/yourname/go-production-starter
+git clone https://github.com/joshdfg/go-production-starter
 cd go-production-starter
 cp .env.example .env
 make compose-up
@@ -567,4 +567,3 @@ production reference. This repo exists to understand _why_ it's structured the w
 | Docker | Multi-stage + Compose | Basic |
 | Purpose | Learn + extend | Production reference |
 | Docker | Multi-stage + Compose | Basic |
-
