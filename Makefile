@@ -70,6 +70,9 @@ compose-logs:
 compose-fresh:
 	docker compose down -v
 	docker compose up --build -d
+
+stop-redis:
+	docker stop todo-clean-redis-1
 # ── migrations ───────────────────────────────────────────
 migrate:
 	docker exec -i todo-postgres psql -U ${POSTGRES_USER} -d ${POSTGRES_DB} \

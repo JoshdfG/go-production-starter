@@ -38,8 +38,7 @@ func Run(cfg *config.Config, l zerolog.Logger) error {
 	}
 	defer rdb.Close()
 
-	// todo layer
-	//  todo layer wiring — the chain is now:
+	//  todo layer wiring the chain is now:
 	// usecase → LoggingRepo → CachingRepo → PostgresRepo → Postgres
 	todoRepo := repo.NewPostgresRepo(db)
 	cachedRepo := repo.NewCachingRepo(todoRepo, rdb, l)
