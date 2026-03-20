@@ -45,7 +45,15 @@ func Run(cfg *config.Config, l zerolog.Logger) error {
 	cachedRepo := repo.NewCachingRepo(todoRepo, rdb, l)
 	loggedRepo := repo.NewLoggingRepo(cachedRepo, l)
 	todoUC := usecase.NewTodoUseCase(loggedRepo)
-
+	// rate limiter
+	rl, err := todohttp.NewRateLimiter(rdb, cfg.RateLimit)
+	if err != nil {
+		return fmt.Errorf("rate limiter: %w", err)
+	}
+	l.Info().
+		Int("ip_limit", cfg.RateLimit.IPLimit).
+		Int("user_limit", cfg.RateLimit.UserLimit).
+		Msg("rate limiter ready")
 	// auth layer
 	userRepo := repo.NewUserPostgresRepo(db)
 	authUC := usecase.NewAuthUseCase(userRepo, cfg.JWT.Secret, cfg.JWT.ExpiryHours)
@@ -53,8 +61,7 @@ func Run(cfg *config.Config, l zerolog.Logger) error {
 	// http
 	todoHandler := todohttp.NewTodoHandler(todoUC)
 	authHandler := todohttp.NewAuthHandler(authUC)
-	router := todohttp.NewRouter(l, db, rdb, todoHandler, authHandler, authUC)
-
+	router := todohttp.NewRouter(l, db, rdb, rl, todoHandler, authHandler, authUC)
 	// graceful shutdown
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)

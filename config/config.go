@@ -8,12 +8,13 @@ import (
 
 // add to Config struct
 type Config struct {
-	App      AppConfig
-	HTTP     HTTPConfig
-	Postgres PostgresConfig
-	Log      LogConfig
-	JWT      JWTConfig
-	Redis    RedisConfig
+	App       AppConfig
+	HTTP      HTTPConfig
+	Postgres  PostgresConfig
+	Log       LogConfig
+	JWT       JWTConfig
+	Redis     RedisConfig
+	RateLimit RateLimitConfig
 }
 
 type AppConfig struct {
@@ -49,6 +50,11 @@ type RedisConfig struct {
 	Port     string `env:"REDIS_PORT"     env-default:"6379"`
 	Password string `env:"REDIS_PASSWORD" env-default:""`
 	DB       int    `env:"REDIS_DB"       env-default:"0"`
+}
+
+type RateLimitConfig struct {
+	IPLimit   int `env:"RATE_LIMIT_IP"   env-default:"100"`
+	UserLimit int `env:"RATE_LIMIT_USER" env-default:"1000"`
 }
 
 func New() (*Config, error) {

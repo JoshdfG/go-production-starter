@@ -21,6 +21,7 @@ func NewRouter(
 	logger zerolog.Logger,
 	db *sql.DB,
 	rdb *redis.Client,
+	rl *RateLimiter,
 	todoHandler *TodoHandler,
 	authHandler *AuthHandler,
 	authUC *usecase.AuthUseCase,
@@ -39,6 +40,7 @@ func NewRouter(
 
 	v1 := r.Group("/v1")
 	{
+		v1.Use(rl.IPRateLimit())
 		authHandler.Register(v1)
 
 		protected := v1.Group("")
