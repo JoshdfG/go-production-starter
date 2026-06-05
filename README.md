@@ -143,7 +143,7 @@ make run
 
 ## Architecture
 
-Clean Architecture — inner layer knows nothing about the outer layer.
+Clean Architecture inner layer knows nothing about the outer layer.
 All cross-layer communication goes through interfaces defined in the inner layer.
 
 ### Layer diagram

@@ -3,6 +3,7 @@ package usecase
 import (
 	"fmt"
 	"time"
+
 	"todo-clean/internal/entity"
 
 	"github.com/google/uuid"
@@ -12,7 +13,7 @@ type TodoUseCase struct {
 	repo TodoRepository // depends on the interface, not a concrete type
 }
 
-// Constructor — this is your DI. No magic, just a function.
+// Constructor this is your DI. No magic, just a function.
 func NewTodoUseCase(repo TodoRepository) *TodoUseCase {
 	return &TodoUseCase{repo: repo}
 }
