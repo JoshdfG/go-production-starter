@@ -6,7 +6,6 @@ import (
 	"github.com/ilyakaznacheev/cleanenv"
 )
 
-// add to Config struct
 type Config struct {
 	App       AppConfig
 	HTTP      HTTPConfig
@@ -60,7 +59,6 @@ type RateLimitConfig struct {
 func New() (*Config, error) {
 	cfg := &Config{}
 	if err := cleanenv.ReadConfig(".env", cfg); err != nil {
-		// .env file is optional — fall back to real env vars
 		if err := cleanenv.ReadEnv(cfg); err != nil {
 			return nil, fmt.Errorf("config error: %w", err)
 		}
